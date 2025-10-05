@@ -1,11 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-
-
-# import psutil
-# for p in psutil.disk_partitions():
-#     print(p.device, p.mountpoint)
+from ctypes_binds import shred_files_cpp
 
 root = tk.Tk()
 root.title("Secure File Shredder")
@@ -31,8 +27,9 @@ def update_button_state():
 def refresh_tree():
     for item in tree.get_children():
         tree.delete(item)
-    for idx, path in enumerate(selected_files, start=1):
-        tree.insert("", "end", values=(idx, os.path.basename(path), path))
+    for path in selected_files:
+        size = os.path.getsize(path)
+        tree.insert("", "end", values=(os.path.basename(path), path, size))
     update_button_state()
 
 def select_files():
@@ -44,12 +41,11 @@ def select_files():
         refresh_tree()
 
 def remove_file():
-    selected = tree.selection()
-    if selected:
-        for item in selected:
-            index = int(tree.item(item)["values"][0]) - 1
-            selected_files.pop(index)
-        refresh_tree()
+    for item in tree.selection():
+        path = tree.item(item)["values"][1]
+        selected_files.remove(path)
+        tree.delete(item)
+    update_button_state()
 
 def remove_all_files():
     selected_files.clear()
@@ -59,11 +55,9 @@ def shred(mode: int):
     if not selected_files:
         messagebox.showwarning("No files", "Please select files first")
         return
+    shred_files_cpp(selected_files, mode)
     messagebox.showinfo("Shred", f"Shredding {len(selected_files)} files with mode {mode}")
     remove_all_files()
-
-
-# ---- Layout ----
 
 btn_frame = ttk.Frame(frm)
 btn_frame.grid(row=0, column=0, columnspan=3, pady=5, sticky="ew")
@@ -74,14 +68,14 @@ remove_btn.pack(side="left", padx=5)
 remove_all_btn = ttk.Button(btn_frame, text="󰧧 Clear All", command=remove_all_files)
 remove_all_btn.pack(side="left", padx=5)
 
-columns = ("#", "File", "Path")
+columns = ("File", "Path", "Size")
 tree = ttk.Treeview(frm, columns=columns, show="headings", selectmode="extended")
-tree.heading("#1", text="#")
-tree.heading("#2", text="Filename", anchor="w")
-tree.heading("#3", text="Path", anchor="w")
-tree.column("#1", width=30, anchor="center")
-tree.column("#2", width=250)
-tree.column("#3", width=380)
+tree.heading("#1", text="Filename", anchor="w")
+tree.heading("#2", text="Path", anchor="w")
+tree.heading("#3", text="Size", anchor="w")
+tree.column("#1", width=250)
+tree.column("#2", width=380)
+tree.column("#3", width=80)
 
 scrollbar = ttk.Scrollbar(frm, orient="vertical", command=tree.yview)
 tree.configure(yscrollcommand=scrollbar.set)
