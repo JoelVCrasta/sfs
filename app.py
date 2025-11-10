@@ -11,24 +11,33 @@ frm = ttk.Frame(root, padding=15)
 frm.pack(fill=tk.BOTH, expand=True)
 
 selected_files = []
+status_var = tk.StringVar(value="No files selected")
+
+def update_status():
+    count = len(selected_files)
+    if count == 0:
+        status_var.set("No files selected")
+    elif count == 1:
+        status_var.set("1 file selected")
+    else:
+        status_var.set(f"{count} files selected")
 
 def update_button_state():
-    if selected_files:
-        remove_btn.config(state="normal")
-        remove_all_btn.config(state="normal")
-        fast_shred_btn.config(state="normal")
-        secure_shred_btn.config(state="normal")
-    else:
-        remove_btn.config(state="disabled")
-        remove_all_btn.config(state="disabled")
-        fast_shred_btn.config(state="disabled")
-        secure_shred_btn.config(state="disabled")
+    state = "normal" if selected_files else "disabled"
+    remove_btn.config(state=state)
+    remove_all_btn.config(state=state)
+    fast_shred_btn.config(state=state)
+    secure_shred_btn.config(state=state)
+    update_status()
 
 def refresh_tree():
     for item in tree.get_children():
         tree.delete(item)
     for path in selected_files:
-        size = os.path.getsize(path)
+        try:
+            size = os.path.getsize(path)
+        except FileNotFoundError:
+            size = "?"
         tree.insert("", "end", values=(os.path.basename(path), path, size))
     update_button_state()
 
@@ -43,7 +52,8 @@ def select_files():
 def remove_file():
     for item in tree.selection():
         path = tree.item(item)["values"][1]
-        selected_files.remove(path)
+        if path in selected_files:
+            selected_files.remove(path)
         tree.delete(item)
     update_button_state()
 
@@ -55,9 +65,13 @@ def shred(mode: int):
     if not selected_files:
         messagebox.showwarning("No files", "Please select files first")
         return
-    shred_files_cpp(selected_files, mode)
-    messagebox.showinfo("Shred", f"Shredding {len(selected_files)} files with mode {mode}")
+    err_count = shred_files_cpp(selected_files, mode)
+    if err_count == -1:
+        messagebox.showerror("Error", "Invalid input to shred library")
+    else:
+        messagebox.showinfo("Shred Complete", f"Shredded {len(selected_files)} files.\nErrors: {err_count}")
     remove_all_files()
+    status_var.set(f"Last operation: {err_count} errors")
 
 btn_frame = ttk.Frame(frm)
 btn_frame.grid(row=0, column=0, columnspan=3, pady=5, sticky="ew")
@@ -90,7 +104,6 @@ fast_shred_btn.pack(side="left", padx=20)
 secure_shred_btn = ttk.Button(shred_frame, text="Secure Shred", command=lambda: shred(2))
 secure_shred_btn.pack(side="left", padx=20)
 
-status_var = tk.StringVar(value="No files selected")
 status_label = ttk.Label(frm, textvariable=status_var, anchor="w")
 status_label.grid(row=3, column=0, columnspan=3, sticky="ew")
 
@@ -98,5 +111,4 @@ frm.rowconfigure(1, weight=1)
 frm.columnconfigure(0, weight=1)
 
 update_button_state()
-
 root.mainloop()
