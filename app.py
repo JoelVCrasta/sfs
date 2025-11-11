@@ -42,7 +42,7 @@ def refresh_tree():
     update_button_state()
 
 def select_files():
-    paths = filedialog.askopenfilenames()
+    paths = filedialog.askopenfilenames(title="Select files")
     if paths:
         for p in paths:
             if p not in selected_files:

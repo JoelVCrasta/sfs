@@ -105,7 +105,7 @@ int secure_shred(const std::string& file) {
         return 4;
     }
 
-    std::cout << " Secure shredded: " << file << std::endl;
+    std::cout << "Secure shredded: " << file << std::endl;
     return 0;
 }
 
