@@ -12,6 +12,7 @@ frm.pack(fill=tk.BOTH, expand=True)
 
 selected_files = []
 status_var = tk.StringVar(value="No files selected")
+progress_var = tk.StringVar(value="Idle")
 
 def update_status():
     count = len(selected_files)
@@ -65,13 +66,41 @@ def shred(mode: int):
     if not selected_files:
         messagebox.showwarning("No files", "Please select files first")
         return
+    total = len(selected_files)
+    progress_var.set(f"Shredding {total} files... This may take a moment.")
+    root.update_idletasks()
+
     err_count = shred_files_cpp(selected_files, mode)
+
     if err_count == -1:
-        messagebox.showerror("Error", "Invalid input to shred library")
+        messagebox.showerror(
+            "Shred Error",
+            "The shred library reported invalid input or mode.\n"
+            "Make sure the selected files still exist and you have permission to modify them."
+        )
+        status_var.set("Last operation failed: invalid input to shred library")
+        progress_var.set("Idle")
+        return
+
+    success = total - err_count
+
+    if err_count == 0:
+        messagebox.showinfo(
+            "Shred Complete",
+            f"Successfully shredded {success} of {total} files with no errors."
+        )
     else:
-        messagebox.showinfo("Shred Complete", f"Shredded {len(selected_files)} files.\nErrors: {err_count}")
+        messagebox.showwarning(
+            "Shred Complete With Errors",
+            f"Requested: {total} files\n"
+            f"Successfully shredded: {success}\n"
+            f"Failed: {err_count}\n\n"
+            "Some files may be locked, missing, or you may not have permission to delete them."
+        )
+
     remove_all_files()
-    status_var.set(f"Last operation: {err_count} errors")
+    status_var.set(f"Last operation: {success}/{total} shredded, {err_count} errors")
+    progress_var.set("Idle")
 
 btn_frame = ttk.Frame(frm)
 btn_frame.grid(row=0, column=0, columnspan=3, pady=5, sticky="ew")
@@ -99,13 +128,16 @@ scrollbar.grid(row=1, column=2, sticky="ns")
 shred_frame = ttk.Frame(frm)
 shred_frame.grid(row=2, column=0, columnspan=3, pady=10)
 
-fast_shred_btn = ttk.Button(shred_frame, text="Fast Shred", command=lambda: shred(1))
+fast_shred_btn = ttk.Button(shred_frame, text="Fast Shred", command=lambda: shred(0))
 fast_shred_btn.pack(side="left", padx=20)
-secure_shred_btn = ttk.Button(shred_frame, text="Secure Shred", command=lambda: shred(2))
+secure_shred_btn = ttk.Button(shred_frame, text="Secure Shred", command=lambda: shred(1))
 secure_shred_btn.pack(side="left", padx=20)
 
 status_label = ttk.Label(frm, textvariable=status_var, anchor="w")
 status_label.grid(row=3, column=0, columnspan=3, sticky="ew")
+
+progress_label = ttk.Label(frm, textvariable=progress_var, anchor="w", foreground="gray")
+progress_label.grid(row=4, column=0, columnspan=3, sticky="ew")
 
 frm.rowconfigure(1, weight=1)
 frm.columnconfigure(0, weight=1)
